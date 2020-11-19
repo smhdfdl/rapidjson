@@ -2067,6 +2067,41 @@ TEST(SchemaValidator, Ref_remote_issue1210) {
     VALIDATE(sx, "{\"country\":\"US\"}", true);
 }
 
+TEST(SchemaValidator, FHIR_Patient) {
+    CrtAllocator allocator;
+    char* json = ReadFile("fhir/fhir.schema.patient.json", allocator);
+    Document d;
+    d.Parse(json);
+    ASSERT_FALSE(d.HasParseError());
+
+    char* jsonp = ReadFile("fhir/patient-example.json", allocator);
+    Document dp;
+    dp.Parse(jsonp);
+    ASSERT_FALSE(dp.HasParseError());
+
+    SchemaDocument sd(d);
+    SchemaValidator validator(sd);
+    std::cout << "validator created\n"; // SMH
+    if (!dp.Accept(validator)) {
+        StringBuffer sb;
+        validator.GetInvalidSchemaPointer().StringifyUriFragment(sb);
+        printf("Invalid schema: %s\n", sb.GetString());
+        printf("Invalid keyword: %s\n", validator.GetInvalidSchemaKeyword());
+        sb.Clear();
+        validator.GetInvalidDocumentPointer().StringifyUriFragment(sb);
+        printf("Invalid document: %s\n", sb.GetString());
+        sb.Clear();
+        Writer<StringBuffer> w(sb);
+        validator.GetError().Accept(w);
+        printf("Validation error: %s\n", sb.GetString());
+        ADD_FAILURE();
+    }
+    CrtAllocator::Free(json);
+    CrtAllocator::Free(jsonp);
+}
+
+
+
 #if defined(_MSC_VER) || defined(__clang__)
 RAPIDJSON_DIAG_POP
 #endif
